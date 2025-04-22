@@ -4,7 +4,7 @@ This repository contains examples and explanations of the most commonly used ope
 
 ## 📦 Requirements
 - Node.js
-- `diamnet-sdk` or compatible
-- Testnet Account
+- `diamnet-sdk` -> npm i diamnet-sdk
+- Testnet Account -> https://laboratory.diamante.io/
 
 ## 🚀 Operations Overview
