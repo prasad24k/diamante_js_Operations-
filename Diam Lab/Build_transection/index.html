@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Transaction Builder</title>
+    <style>
+      #result-blk,
+      #result-btn-blk {
+        display: none;
+      }
+      #result-blk {
+        background-color: #f0f0f0;
+        padding: 10px;
+        margin-top: 20px;
+      }
+      #result-btn-blk {
+        margin-top: 10px;
+      }
+      .dynamic-input {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Transaction Builder</h1>
+    <form id="transaction-form">
+      <label for="sourceAccount">Source Account:</label>
+      <input
+        type="text"
+        id="sourceAccount"
+        name="sourceAccount"
+        required 
+      /><br /><br />
+
+      <label for="sequence">Sequence:</label>
+      <input
+        type="text"
+        id="sequence"
+        name="sequence"
+        required
+        readonly
+      /><br /><br />
+
+      <label for="amount">Amount:</label>
+      <input type="text" id="amount" name="amount" required /><br /><br />
+
+      <label for="baseFee">Base Fee:</label>
+      <input type="text" id="baseFee" name="baseFee" required /><br /><br />
+
+      <label for="memo">Memo:</label>
+      <input type="text" id="memo" name="memo" /><br /><br />
+
+      <label for="timeoutEnabled">Timeout Enabled:</label>
+      <input
+        type="checkbox"
+        id="timeoutEnabled"
+        name="timeoutEnabled"
+      /><br /><br />
+
+      <div id="time-bound-inputs" style="display: none">
+        <label for="lowerTimeBound">Time Bound:</label>
+        <button type="button" id="set-time-bounds">Set from 5 min now</button>
+        <input type="text" id="timeout" name="timeout" />
+        <input
+          type="text"
+          id="lowerTimeBound"
+          name="lowerTimeBound"
+        /><br /><br />
+      </div>
+
+      <label for="operation">Operation:</label>
+      <select id="operation" name="operation" required>
+        <option value="payment">Payment</option>
+        <option value="createAccount">Create Account</option>
+        <option value="manageData">Manage Data</option>
+        <option value="changeTrust">Change Trust</option>
+        <option value="setOptions">Set Options</option></select
+      ><br /><br />
+
+      <div id="dynamic-inputs">
+        <!-- *Payment Operation Inputs* -->
+        <div id="payment-inputs" class="dynamic-input">
+          <label for="payment-destination">Destination Account:</label>
+          <input
+            type="text"
+            id="payment-destination"
+            name="payment-destination"
+            required
+          /><br /><br />
+
+          <label for="payment-asset-type">Asset Type:</label>
+          <select id="payment-asset-type" name="payment-asset-type" required>
+            <option value="native">Native</option>
+            <option value="alphanumeric4">Alphanumeric 4</option>
+            <option value="alphanumeric12">Alphanumeric 12</option></select
+          ><br /><br />
+
+          <div id="asset-code-issuer-fields">
+            <label for="payment-asset-code">Asset Code:</label>
+            <input
+              type="text"
+              id="payment-asset-code"
+              name="payment-asset-code"
+            /><br /><br />
+
+            <label for="payment-asset-issuer">Asset Issuer:</label>
+            <input
+              type="text"
+              id="payment-asset-issuer"
+              name="payment-asset-issuer"
+            /><br /><br />
+          </div>
+
+          <label for="payment-amount">Amount:</label>
+          <input
+            type="text"
+            id="payment-amount"
+            name="payment-amount"
+            required
+          /><br /><br />
+        </div>
+
+        <!-- *Create Account Operation Inputs* -->
+        <div id="createAccount-inputs" class="dynamic-input">
+          <label for="createAccount-destination">Destination Account:</label>
+          <input
+            type="text"
+            id="createAccount-destination"
+            name="createAccount-destination"
+            required
+          /><br /><br />
+
+          <label for="createAccount-startingBalance">Starting Balance:</label>
+          <input
+            type="text"
+            id="createAccount-startingBalance"
+            name="createAccount-startingBalance"
+            required
+          /><br /><br />
+        </div>
+
+        <!-- *Manage Data Operation Inputs *-->
+        <div id="manageData-inputs" class="dynamic-input">
+          <label for="manageData-name">Name:</label>
+          <input
+            type="text"
+            id="manageData-name"
+            name="manageData-name"
+            required
+          /><br /><br />
+
+          <label for="manageData-value">Value:</label>
+          <input
+            type="text"
+            id="manageData-value"
+            name="manageData-value"
+            required
+          /><br /><br />
+        </div>
+
+        <!--*Change Trust Operation Inputs* -->
+        <div id="changeTrust-inputs" class="dynamic-input">
+          <label for="changeTrust-asset-code">Asset Code:</label>
+          <input
+            type="text"
+            id="changeTrust-asset-code"
+            name="changeTrust-asset-code"
+            required
+          /><br /><br />
+
+          <label for="changeTrust-asset-issuer">Asset Issuer:</label>
+          <input
+            type="text"
+            id="changeTrust-asset-issuer"
+            name="changeTrust-asset-issuer"
+            required
+          /><br /><br />
+
+          <label for="changeTrust-limit">Limit:</label>
+          <input
+            type="text"
+            id="changeTrust-limit"
+            name="changeTrust-limit"
+            required
+          /><br /><br />
+        </div>
+
+        <!--*Set Options Operation Inputs* -->
+        <div id="setOptions-inputs" class="dynamic-input">
+          <label for="setOptions-master-weight">Master Weight:</label>
+          <input
+            type="text"
+            id="setOptions-master-weight"
+            name="setOptions-master-weight"
+            required
+          /><br /><br />
+
+          <label for="setOptions-low-threshold">Low Threshold:</label>
+          <input
+            type="text"
+            id="setOptions-low-threshold"
+            name="setOptions-low-threshold"
+            required
+          /><br /><br />
+
+          <label for="setOptions-med-threshold">Med Threshold:</label>
+          <input
+            type="text"
+            id="setOptions-med-threshold"
+            name="setOptions-med-threshold"
+            required
+          /><br /><br />
+
+          <label for="setOptions-high-threshold">High Threshold:</label>
+          <input
+            type="text"
+            id="setOptions-high-threshold"
+            name="setOptions-high-threshold"
+            required
+          /><br /><br />
+
+          <label for="setOptions-signer-public-key">Signer Public Key:</label>
+          <input
+            type="text"
+            id="setOptions-signer-public-key"
+            name="setOptions-signer-public-key"
+            required
+          /><br /><br />
+
+          <label for="setOptions-signer-weight">Signer Weight:</label>
+          <input
+            type="text"
+            id="setOptions-signer-weight"
+            name="setOptions-signer-weight"
+            required
+          /><br /><br />
+        </div>
+      </div>
+
+      <label for="memotype">Memo Type:</label>
+      <select id="memotype" name="memotype" required>
+        <option value="empty">Empty</option>
+        <option value="text">Text</option>
+        <option value="id">ID</option>
+        <option value="hash">Hash</option></select
+      ><br /><br />
+
+      <button type="button" onclick="buildTransaction()">
+        Build Transaction
+      </button>
+    </form>
+
+    <div id="result-blk">
+      <h2>Transaction Result</h2>
+      <p id="xdr-built"></p>
+      <p id="xdr-result1"></p>
+    </div>
+
+    <div id="result-btn-blk">
+      <button onclick="copyToClipboard()">Copy XDR</button>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/diamnet-sdk/dist/diamnet-sdk.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+      
+
+//source account input
+document.getElementById("sourceAccount").addEventListener("change", async function () {
+  const sourceAccount = this.value;
+
+  if (!sourceAccount) {
+    alert("Please enter a valid source account.");
+    return;
+  }
+
+  try {
+    const serverUrl = "https://diamtestnet.diamcircle.io/";
+    const server = new DiamSdk.Aurora.Server(serverUrl);
+    const account = await server.loadAccount(sourceAccount);
+    document.getElementById("sequence").value = account.sequence;
+  } catch (error) {
+    console.error("Error fetching sequence number:", error);
+    alert("Error fetching sequence number. Please check the source account.");
+  }
+});
+
+//operation select
+document.getElementById("operation").addEventListener("change", function () {
+  const operation = this.value;
+  document.querySelectorAll(".dynamic-input").forEach((input) => (input.style.display = "none"));
+  document.getElementById(`${operation}-inputs`).style.display = "block";
+});
+
+//payment asset type
+document.getElementById("payment-asset-type").addEventListener("change", function () {
+  const assetType = this.value;
+  const assetCodeIssuerFields = document.getElementById("asset-code-issuer-fields");
+
+  if (assetType === "native") {
+    assetCodeIssuerFields.style.display = "none";
+  } else {
+    assetCodeIssuerFields.style.display = "block";
+  }
+});
+
+//set time bounds button
+document.getElementById("set-time-bounds").addEventListener("click", function () {
+  const now = Math.floor(Date.now() / 1000);
+  const fiveMinutesFromNow = now + 300;
+
+  document.getElementById("timeout").value = "300";
+  document.getElementById("lowerTimeBound").value = now.toString();
+});
+
+//timeout enabled checkbox
+document.getElementById("timeoutEnabled").addEventListener("change", function () {
+  const timeBoundInputs = document.getElementById("time-bound-inputs");
+  if (this.checked) {
+    timeBoundInputs.style.display = "block";
+  } else {
+    timeBoundInputs.style.display = "none";
+  }
+});
+
+async function transactionBuilder(params) {
+  const {
+    _sourceAccount,
+    sequence,
+    baseFee,
+    memo,
+    timeoutEnabled,
+    _lowerTimeBound,
+    _operation,
+    data,
+    memotype,
+  } = params;
+
+  let operation;
+
+  console.log("transactionBuilder called with:", _operation, data);
+
+  switch (_operation) {
+    case "payment":
+      if (data[1] === "native") {
+        if (data.length < 3) {
+          return "Invalid data for payment operation";
+        }
+        operation = DiamSdk.Operation.payment({
+          destination: data[0],
+          asset: DiamSdk.Asset.native(),
+          amount: data[2],
+        });
+      } else if (data[1] === "alphanumeric4" || data[1] === "alphanumeric12") {
+        if (data.length < 5) {
+          return "Invalid data for payment operation";
+        }
+        const customAsset = new DiamSdk.Asset(data[2], data[3]);
+        operation = DiamSdk.Operation.payment({
+          destination: data[0],
+          asset: customAsset,
+          amount: data[4],
+        });
+      }
+      break;
+    case "createAccount":
+      if (data.length < 2) {
+        return "Invalid data for createAccount operation";
+      }
+      operation = DiamSdk.Operation.createAccount({
+        destination: data[0],
+        startingBalance: data[1],
+      });
+      break;
+    case "manageData":
+      if (data.length < 2) {
+        return "Invalid data for manageData operation";
+      }
+      operation = DiamSdk.Operation.manageData({
+        name: data[0],
+        value: data[1],
+      });
+      break;
+    case "changeTrust":
+      if (data.length < 3) {
+        return "Invalid data for changeTrust operation";
+      }
+      const asset = new DiamSdk.Asset(data[0], data[1]);
+      operation = DiamSdk.Operation.changeTrust({
+        asset: asset,
+        limit: data[2],
+      });
+      break;
+    case "setOptions":
+      if (data.length < 6) {
+        return "Invalid data for setOptions operation";
+      }
+      operation = DiamSdk.Operation.setOptions({
+        masterWeight: parseInt(data[0]) || undefined,
+        lowThreshold: parseInt(data[1]) || undefined,
+        medThreshold: parseInt(data[2]) || undefined,
+        highThreshold: parseInt(data[3]) || undefined,
+        signer: {
+          ed25519PublicKey: data[4],
+          weight: parseInt(data[5]) || undefined,
+        },
+      });
+      break;
+    default:
+      return "Invalid operation specified";
+  }
+
+  //console.log("Operation:", operation);
+
+  return _transactionBuilder({
+    _sourceAccount,
+    sequence,
+    baseFee,
+    memo,
+    timeoutEnabled,
+    _lowerTimeBound,
+    operation: _operation,
+    data: operation,
+    memotype,
+  });
+}
+
+async function _transactionBuilder(params) {
+  const {
+    _sourceAccount,
+    sequence,
+    baseFee,
+    memo,
+    timeoutEnabled,
+    _lowerTimeBound,
+    data,
+    memotype,
+  } = params;
+
+  if (_sourceAccount === "" || baseFee === "" || sequence === "") {
+    return "Some parameters are not filled";
+  }
+
+  let upperTimeBound = 0;
+  let lowerTimeBound = 0;
+  let timeout = timeoutEnabled ? parseInt(document.getElementById("timeout").value) || 300 : 0;
+
+  //onsole.log("Params data:", params);
+
+  if (timeoutEnabled) {
+    if (_lowerTimeBound === undefined) {
+      return "Lower time bound is required when timeout is enabled";
+    }
+    lowerTimeBound = parseInt(_lowerTimeBound);
+    upperTimeBound = lowerTimeBound + timeout;
+  }
+
+  let memoObj;
+
+  switch (memotype) {
+    case "empty":
+      memoObj = DiamSdk.Memo.none();
+      break;
+    case "text":
+      memoObj = DiamSdk.Memo.text(memo);
+      break;
+    case "id":
+      memoObj = DiamSdk.Memo.id(memo);
+      break;
+    case "hash":
+      memoObj = DiamSdk.Memo.hash(memo);
+      break;
+    default:
+      memoObj = DiamSdk.Memo.none();
+  }
+
+ /* try {
+    const serverUrl = "https://diamtestnet.diamcircle.io/";
+    const server = new DiamSdk.Aurora.Server(serverUrl);
+    const sourceAccount = await server.loadAccount(_sourceAccount);
+    console.log("Source account:", sourceAccount);
+
+    const transaction = new DiamSdk.TransactionBuilder(sourceAccount, {
+      fee: baseFee,
+      networkPassphrase: DiamSdk.Networks.TESTNET,
+      timebounds: {
+        minTime: lowerTimeBound || 0,
+        maxTime: upperTimeBound || 0,
+      },
+    })
+
+      .addOperation(data)
+      .addMemo(memoObj)
+      .setTimeout(timeout)
+      .build();
+
+    console.log("Transaction:", transaction); 
+
+    const content = transaction.toEnvelope().toXDR("base64");
+    console.log("XDR content:", content);
+
+    document.getElementById("result-blk").style.display = "block";
+    document.getElementById("xdr-built").innerHTML = transaction.networkPassphrase;
+    document.getElementById("xdr-result1").innerHTML = content;
+    document.getElementById("result-btn-blk").style.display = "block";
+
+    return content;
+  } catch (error) {
+    console.error("Error building transaction:", error);
+    return "Error building transaction: " + error.message;
+  }
+} */
+try {
+  const serverUrl = "https://diamtestnet.diamcircle.io/";
+  const server = new DiamSdk.Aurora.Server(serverUrl);
+  const sourceAccount = await server.loadAccount(_sourceAccount);
+  //console.log("Source account:", sourceAccount);
+
+  let transactionBuilder;
+  if (timeoutEnabled) {
+    transactionBuilder = new DiamSdk.TransactionBuilder(sourceAccount, {
+      fee: baseFee,
+      networkPassphrase: DiamSdk.Networks.TESTNET,
+      timebounds: {
+        minTime: lowerTimeBound,
+        maxTime: upperTimeBound,
+      },
+    });
+  } else {
+    transactionBuilder = new DiamSdk.TransactionBuilder(sourceAccount, {
+      fee: baseFee,
+      networkPassphrase: DiamSdk.Networks.TESTNET,
+    });
+  }
+
+  let transaction;
+  if (timeoutEnabled) {
+    transaction = transactionBuilder
+      .addOperation(data)
+      .addMemo(memoObj)
+      .build();
+  } else {
+    transaction = transactionBuilder
+      .addOperation(data)
+      .addMemo(memoObj)
+      .setTimeout(timeout)
+      .build();
+  }
+
+  //console.log("Transaction:", transaction);
+
+  const content = transaction.toEnvelope().toXDR("base64");
+  console.log("XDR content:", content);
+
+  document.getElementById("result-blk").style.display = "block";
+  document.getElementById("xdr-built").innerHTML = transaction.networkPassphrase;
+  document.getElementById("xdr-result1").innerHTML = content;
+  document.getElementById("result-btn-blk").style.display = "block";
+
+  return content;
+} catch (error) {
+  console.error("Error building transaction:", error);
+  return "Error building transaction: " + error.message;
+}
+}
+
+function buildTransaction() {
+  const sourceAccount = document.getElementById("sourceAccount").value;
+  const sequence = document.getElementById("sequence").value;
+  const baseFee = document.getElementById("baseFee").value;
+  const memo = document.getElementById("memo").value;
+  const timeoutEnabled = document.getElementById("timeoutEnabled").checked;
+  const lowerTimeBound = document.getElementById("lowerTimeBound").value;
+  const operation = document.getElementById("operation").value;
+  const memotype = document.getElementById("memotype").value;
+
+  console.log(
+    "buildTransaction called with:",
+    sourceAccount,
+    sequence,
+    baseFee,
+    memo,
+    timeoutEnabled,
+    lowerTimeBound,
+    operation,
+    memotype
+  );
+
+  let data = [];
+
+  switch (operation) {
+    case "payment":
+      data.push(document.getElementById("payment-destination").value);
+      data.push(document.getElementById("payment-asset-type").value);
+      if (data[1] !== "native") {
+        data.push(document.getElementById("payment-asset-code").value);
+        data.push(document.getElementById("payment-asset-issuer").value);
+      }
+      data.push(document.getElementById("payment-amount").value);
+      break;
+    case "createAccount":
+      data.push(document.getElementById("createAccount-destination").value);
+      data.push(document.getElementById("createAccount-startingBalance").value);
+      break;
+    case "manageData":
+      data.push(document.getElementById("manageData-name").value);
+      data.push(document.getElementById("manageData-value").value);
+      break;
+    case "changeTrust":
+      data.push(document.getElementById("changeTrust-asset-code").value);
+      data.push(document.getElementById("changeTrust-asset-issuer").value);
+      data.push(document.getElementById("changeTrust-limit").value);
+      break;
+    case "setOptions":
+      data.push(document.getElementById("setOptions-master-weight").value);
+      data.push(document.getElementById("setOptions-low-threshold").value);
+      data.push(document.getElementById("setOptions-med-threshold").value);
+      data.push(document.getElementById("setOptions-high-threshold").value);
+      data.push(document.getElementById("setOptions-signer-public-key").value);
+      data.push(document.getElementById("setOptions-signer-weight").value);
+      break;
+  }
+
+  //console.log("Data collected:", data);
+
+  transactionBuilder({
+    _sourceAccount: sourceAccount,
+    sequence,
+    baseFee,
+    memo,
+    timeoutEnabled,
+    _lowerTimeBound: lowerTimeBound,
+    _operation: operation,
+    data,
+    memotype,
+  }).then((result) => {
+    if (typeof result === "string" && result.startsWith("Error")) {
+      alert(result);
+    }
+  });
+}
+
+function copyToClipboard() {
+  const content = document.getElementById("xdr-result1").innerText;
+  navigator.clipboard
+    .writeText(content)
+    .then(() => {
+      alert("XDR copied to clipboard");
+    })
+    .catch((err) => {
+      console.error("Failed to copy: ", err);
+    });
+}
+    </script>
+  </body>
+</html>

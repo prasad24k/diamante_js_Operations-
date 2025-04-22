@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diamnet Keypair Generator</title>
+  <style>
+    .hidden { display: none; }
+    .success { color: green; }
+    .error { color: red; }
+  </style>
+</head>
+<body>
+  <button id="generateKeypairBtn">Generate Keypair</button>
+  <div id="keypairDisplay" class="hidden">
+    <p>Public Key: <span id="publicKey"></span></p>
+    <p>Secret Key: <span id="secretKey"></span></p>
+  </div>
+
+  <input type="text" id="fundPublicKey" placeholder="Enter public key to fund" />
+  <button id="fundAccountBtn">Fund Account</button>
+  <p id="fundStatus" class="hidden"></p>
+
+  <!-- Use Stellar SDK as a fallback -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/10.1.0/stellar-sdk.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script>
+    // Stellar SDK (might work with Diamnet as it's a Stellar fork)
+    const Keypair = StellarSdk.Keypair;
+
+    document.getElementById("generateKeypairBtn").addEventListener("click", () => {
+      const { publicKey, secret } = createKeypair();
+      document.getElementById("publicKey").textContent = publicKey;
+      document.getElementById("secretKey").textContent = secret;
+      document.getElementById("keypairDisplay").classList.remove("hidden");
+    });
+
+    document.getElementById("fundAccountBtn").addEventListener("click", async () => {
+      const publicKey = document.getElementById("fundPublicKey").value;
+      const fundStatus = document.getElementById("fundStatus");
+      try {
+        await fundAccount(publicKey);
+        fundStatus.textContent = "Account funded successfully!";
+        fundStatus.classList.add("success");
+      } catch (error) {
+        fundStatus.textContent = "Error funding account.";
+        fundStatus.classList.add("error");
+      }
+      fundStatus.classList.remove("hidden");
+    });
+
+    function createKeypair() {
+      const keyPair = Keypair.random();
+      return {
+        publicKey: keyPair.publicKey(),
+        secret: keyPair.secret(),
+      };
+    }
+
+    async function fundAccount(publicKey) {
+      const response = await axios.get(
+        `https://friendbot.stellar.org/?addr=${publicKey}` // Friendbot URL for Stellar
+      );
+      console.log("Account funded successfully", publicKey);
+    }
+  </script>
+</body>
+</html>

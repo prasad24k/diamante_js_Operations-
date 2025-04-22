@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Builder</title>
+    <style>
+        #result-blk, #result-btn-blk {
+            display: none;
+        }
+        #result-blk {
+            background-color: #f0f0f0;
+            padding: 10px;
+            margin-top: 20px;
+        }
+        #result-btn-blk {
+            margin-top: 10px;
+        }
+        .dynamic-input {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Transaction Builder</h1>
+    <form id="transaction-form">
+        <label for="sourceAccount">Source Account:</label>
+        <input type="text" id="sourceAccount" name="sourceAccount" required><br><br>
+
+        <label for="sequence">Sequence:</label>
+        <input type="text" id="sequence" name="sequence" required readonly><br><br>
+
+        <label for="amount">Amount:</label>
+        <input type="text" id="amount" name="amount" required><br><br>
+
+        <label for="baseFee">Base Fee:</label>
+        <input type="text" id="baseFee" name="baseFee" required><br><br>
+
+        <label for="memo">Memo:</label>
+        <input type="text" id="memo" name="memo"><br><br>
+
+        <label for="timeout">Timeout:</label>
+        <input type="text" id="timeout" name="timeout"><br><br>
+
+        <label for="timeoutEnabled">Timeout Enabled:</label>
+        <input type="checkbox" id="timeoutEnabled" name="timeoutEnabled"><br><br>
+
+        <label for="lowerTimeBound">Time Bound:</label>
+        <input type="text" id="lowerTimeBound" name="lowerTimeBound"><br><br>
+
+        <label for="operation">Operation:</label>
+        <select id="operation" name="operation" required>
+            <option value="payment">Payment</option>
+            <option value="createAccount">Create Account</option>
+            <option value="manageData">Manage Data</option>
+            <option value="changeTrust">Change Trust</option>
+            <option value="setOptions">Set Options</option>
+        </select><br><br>
+
+        <div id="dynamic-inputs">
+            <!-- Payment Operation Inputs -->
+            <div id="payment-inputs" class="dynamic-input">
+                <label for="payment-destination">Destination Account:</label>
+                <input type="text" id="payment-destination" name="payment-destination" required><br><br>
+
+                <label for="payment-asset-type">Asset Type:</label>
+                <select id="payment-asset-type" name="payment-asset-type" required>
+                    <option value="native">Native</option>
+                    <option value="alphanumeric4">Alphanumeric 4</option>
+                    <option value="alphanumeric12">Alphanumeric 12</option>
+                </select><br><br>
+
+                <label for="payment-asset-code">Asset Code:</label>
+                <input type="text" id="payment-asset-code" name="payment-asset-code"><br><br>
+
+                <label for="payment-asset-issuer">Asset Issuer:</label>
+                <input type="text" id="payment-asset-issuer" name="payment-asset-issuer"><br><br>
+
+                <label for="payment-amount">Amount:</label>
+                <input type="text" id="payment-amount" name="payment-amount" required><br><br>
+            </div>
+
+            <!-- Create Account Operation Inputs -->
+            <div id="createAccount-inputs" class="dynamic-input">
+                <label for="createAccount-destination">Destination Account:</label>
+                <input type="text" id="createAccount-destination" name="createAccount-destination" required><br><br>
+
+                <label for="createAccount-startingBalance">Starting Balance:</label>
+                <input type="text" id="createAccount-startingBalance" name="createAccount-startingBalance" required><br><br>
+            </div>
+
+            <!-- Manage Data Operation Inputs -->
+            <div id="manageData-inputs" class="dynamic-input">
+                <label for="manageData-name">Name:</label>
+                <input type="text" id="manageData-name" name="manageData-name" required><br><br>
+
+                <label for="manageData-value">Value:</label>
+                <input type="text" id="manageData-value" name="manageData-value" required><br><br>
+            </div>
+
+            <!-- Change Trust Operation Inputs -->
+            <div id="changeTrust-inputs" class="dynamic-input">
+                <label for="changeTrust-asset-code">Asset Code:</label>
+                <input type="text" id="changeTrust-asset-code" name="changeTrust-asset-code" required><br><br>
+
+                <label for="changeTrust-asset-issuer">Asset Issuer:</label>
+                <input type="text" id="changeTrust-asset-issuer" name="changeTrust-asset-issuer" required><br><br>
+
+                <label for="changeTrust-limit">Limit:</label>
+                <input type="text" id="changeTrust-limit" name="changeTrust-limit" required><br><br>
+            </div>
+
+            <!-- Set Options Operation Inputs -->
+            <div id="setOptions-inputs" class="dynamic-input">
+                <label for="setOptions-master-weight">Master Weight:</label>
+                <input type="text" id="setOptions-master-weight" name="setOptions-master-weight" required><br><br>
+
+                <label for="setOptions-low-threshold">Low Threshold:</label>
+                <input type="text" id="setOptions-low-threshold" name="setOptions-low-threshold" required><br><br>
+
+                <label for="setOptions-med-threshold">Med Threshold:</label>
+                <input type="text" id="setOptions-med-threshold" name="setOptions-med-threshold" required><br><br>
+
+                <label for="setOptions-high-threshold">High Threshold:</label>
+                <input type="text" id="setOptions-high-threshold" name="setOptions-high-threshold" required><br><br>
+
+                <label for="setOptions-signer-public-key">Signer Public Key:</label>
+                <input type="text" id="setOptions-signer-public-key" name="setOptions-signer-public-key" required><br><br>
+
+                <label for="setOptions-signer-weight">Signer Weight:</label>
+                <input type="text" id="setOptions-signer-weight" name="setOptions-signer-weight" required><br><br>
+            </div>
+        </div>
+
+        <label for="memotype">Memo Type:</label>
+        <select id="memotype" name="memotype" required>
+            <option value="empty">Empty</option>
+            <option value="text">Text</option>
+            <option value="id">ID</option>
+            <option value="hash">Hash</option>
+        </select><br><br>
+
+        <button type="button" onclick="buildTransaction()">Build Transaction</button>
+    </form>
+
+    <div id="result-blk">
+        <h2>Transaction Result</h2>
+        <p id="xdr-built"></p>
+        <p id="xdr-result1"></p>
+    </div>
+
+    <div id="result-btn-blk">
+        <button onclick="copyToClipboard()">Copy XDR</button>
+    </div>
+
+    <!-- Include Diamnet SDK and Axios via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/diamnet-sdk/dist/diamnet-sdk.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <script>
+      const server = new DiamSdk.Aurora.Server("https://diamtestnet.diamcircle.io/");
+
+      async function getAccountSequenceNumber(sourceAccount) {
+          try {
+              const accountInfo = await server.loadAccount(sourceAccount);
+              const sequenceNumber = accountInfo.sequenceNumber();
+
+              console.log(`Sequence number for account ${sourceAccount}: ${sequenceNumber}`);
+              return sequenceNumber;
+          } catch (error) {
+              console.error('Error fetching account details:', error);
+              throw error;
+          }
+      }
+
+      document.getElementById('sourceAccount').addEventListener('change', async function() {
+          const sourceAccount = this.value;
+          try {
+              const sequenceNumber = await getAccountSequenceNumber(sourceAccount);
+              document.getElementById('sequence').value = sequenceNumber;
+          } catch (error) {
+              alert('Error fetching sequence number. Please check the source account.');
+          }
+      });
+
+      document.getElementById('operation').addEventListener('change', function() {
+          const operation = this.value;
+          document.querySelectorAll('.dynamic-input').forEach(input => input.style.display = 'none');
+          document.getElementById(`${operation}-inputs`).style.display = 'block';
+      });
+
+      async function _trasnactionBuilder(
+          _sourceAccount,
+          sequence,
+          amount,
+          baseFee,
+          memo,
+          timeout,
+          timeoutEnabled,
+          _lowerTimeBound,
+          operation,
+          data,
+          memotype
+      ) {
+          try {
+              console.log("Called  ", _sourceAccount === "", baseFee === "", sequence === "")
+              var op;
+              var upperTimeBound = 0;
+              var lowerTimeBound = 0;
+
+              if (_sourceAccount === "" || baseFee === "" || sequence === "") {
+                  console.log(12)
+                  return "Some parameters are not filled";
+              }
+
+              switch (operation) {
+                  case "payment":
+                  case "createAccount":
+                  case "manageData":
+                  case "changeTrust":
+                  case "setOptions":
+                      op = data;
+                      break;
+
+                  default:
+                      return "Invalid operation specified";
+              }
+              console.log(op)
+              console.log(1)
+
+              if (timeout === "") {
+                  timeout = 180;
+              }
+
+              if (timeoutEnabled) {
+                  if (_lowerTimeBound === undefined) {
+                      console.log(13)
+                      return "Lower time bound is required when timeout is enabled";
+                  }
+              } else {
+                  lowerTimeBound = _lowerTimeBound;
+                  upperTimeBound = Math.ceil(Date.now() / 1000) + timeout;
+              }
+
+              console.log(2, memotype)
+
+              var memoObj;
+
+              if (memotype === "empty") {
+                  memoObj = DiamSdk.Memo.text("");
+              } else if (memotype === "text") {
+                  memoObj = DiamSdk.Memo.text(memo);
+              } else if (memotype === "id") {
+                  memoObj = DiamSdk.Memo.id(memo.toString());
+              } else if (memotype === "hash") {
+                  memoObj = DiamSdk.Memo.hash(DiamSdk.hash("yourString").toString("hex"));
+              }
+
+              const sourceAccount = await server.loadAccount(_sourceAccount);
+              console.log(3)
+
+              const transaction = new DiamSdk.TransactionBuilder(sourceAccount, {
+                  fee: baseFee,
+                  networkPassphrase: "Diamante Testnet",
+                  sequence: sequence,
+                  timebounds: { minTime: lowerTimeBound || 0, maxTime: upperTimeBound }
+              })
+                  .addOperation(op)
+                  .addMemo(memoObj)
+                  .build();
+
+              console.log("Transaction XDR:");
+              console.log(transaction.toEnvelope().toXDR("base64"));
+              console.log(transaction.toEnvelope().toXDR("base64"), transaction.networkPassphrase, transaction)
+
+              var content = transaction.toEnvelope().toXDR("base64");
+
+              document.getElementById('result-blk').style.display = 'block';
+              document.getElementById("xdr-built").innerHTML = transaction.networkPassphrase;
+              document.getElementById("xdr-result1").innerHTML = content;
+              document.getElementById('result-btn-blk').style.display = 'block';
+
+              xdrBuilt = content;
+
+          } catch (error) {
+              document.getElementById('result-blk').style.backgroundColor = "#ff4d4463";
+              document.getElementById('result-btn-blk').style.color = "red";
+              document.getElementById('result-blk').style.backgroundColor = "#ff4d4463";
+              document.getElementById('result-btn-blk').style.color = "red";
+
+              document.getElementById("xdr-built").innerHTML = error;
+
+              console.log(error);
+          }
+      }
+
+      async function trasnactionBuilder(
+          _sourceAccount,
+          sequence,
+          amount,
+          baseFee,
+          memo,
+          timeout,
+          timeoutEnabled,
+          _lowerTimeBound,
+          _operation,
+          data,
+          memotype
+      ) {
+          var operation;
+
+          console.log(_operation, " main", data[1], data[2]);
+
+          switch (_operation) {
+              case "payment":
+                  console.log("payment", data[0], data[1]);
+
+                  if (data.length < 4) {
+                      return "Invalid data for payment operation";
+                  }
+
+                  const assetType = data[1];
+                  if (assetType === "native") {
+                      operation = DiamSdk.Operation.payment({
+                          destination: data[0], // replace with your actual destination account ID
+                          asset: DiamSdk.Asset.native(),
+                          amount: data[3],
+                      });
+                  } else if (assetType === "alphanumeric4" || assetType === "alphanumeric12") {
+                      const customAsset = new DiamSdk.Asset(data[2], data[3]);
+
+                      operation = DiamSdk.Operation.payment({
+                          destination: data[0], // replace with your actual destination account ID
+                          asset: customAsset,
+                          amount: data[4],
+                      });
+                  }
+                  break;
+              case "createAccount":
+                  console.log("Create account", data[0], data[1]);
+
+                  if (data.length < 2) {
+                      return "Invalid data for createAccount operation";
+                  }
+
+                  operation = DiamSdk.Operation.createAccount({
+                      destination: data[0], // replace with your actual destination account ID
+                      startingBalance: data[1].toString(),
+                  });
+                  break;
+
+              case "manageData":
+                  if (data.length < 2) {
+                      return "Invalid data for manageData operation";
+                  }
+
+                  operation = DiamSdk.Operation.manageData({
+                      name: data[0],
+                      value: data[1],
+                  });
+                  break;
+
+              case "changeTrust":
+                  if (data.length < 3) {
+                      return "Invalid data for changeTrust operation";
+                  }
+
+                  let customAsset = new DiamSdk.Asset(data[0], data[1]);
+
+                  operation = DiamSdk.Operation.changeTrust({
+                      asset: customAsset, //DiamSdk.Asset.native(),
+                      limit: data[2],
+                  });
+                  break;
+
+              case "setOptions":
+                  if (data.length < 6) {
+                      return "Invalid data for setOptions operation";
+                  }
+
+                  operation = DiamSdk.Operation.setOptions({
+                      masterWeight: data[0],
+                      lowThreshold: data[1],
+                      medThreshold: data[2],
+                      highThreshold: data[3],
+                      signer: {
+                          ed25519PublicKey: data[4],
+                          weight: data[5], // Set the weight as needed
+                      },
+                  });
+                  break;
+
+              default:
+                  return "Invalid operation specified";
+          }
+
+          _trasnactionBuilder(_sourceAccount,
+              sequence,
+              amount,
+              baseFee,
+              memo,
+              timeout,
+              timeoutEnabled,
+              _lowerTimeBound,
+              _operation,
+              operation, memotype);
+      }
+
+      function buildTransaction() {
+          const sourceAccount = document.getElementById('sourceAccount').value;
+          const sequence = document.getElementById('sequence').value;
+          const amount = document.getElementById('amount').value;
+          const baseFee = document.getElementById('baseFee').value;
+          const memo = document.getElementById('memo').value;
+          const timeout = document.getElementById('timeout').value;
+          const timeoutEnabled = document.getElementById('timeoutEnabled').checked;
+          const lowerTimeBound = document.getElementById('lowerTimeBound').value;
+          const operation = document.getElementById('operation').value;
+          const memotype = document.getElementById('memotype').value;
+
+          let data = [];
+
+          switch (operation) {
+              case "payment":
+                  data.push(document.getElementById('payment-destination').value);
+                  data.push(document.getElementById('payment-asset-type').value);
+                  data.push(document.getElementById('payment-asset-code').value);
+                  data.push(document.getElementById('payment-asset-issuer').value);
+                  data.push(document.getElementById('payment-amount').value);
+                  break;
+              case "createAccount":
+                  data.push(document.getElementById('createAccount-destination').value);
+                  data.push(document.getElementById('createAccount-startingBalance').value);
+                  break;
+              case "manageData":
+                  data.push(document.getElementById('manageData-name').value);
+                  data.push(document.getElementById('manageData-value').value);
+                  break;
+              case "changeTrust":
+                  data.push(document.getElementById('changeTrust-asset-code').value);
+                  data.push(document.getElementById('changeTrust-asset-issuer').value);
+                  data.push(document.getElementById('changeTrust-limit').value);
+                  break;
+              case "setOptions":
+                  data.push(document.getElementById('setOptions-master-weight').value);
+                  data.push(document.getElementById('setOptions-low-threshold').value);
+                  data.push(document.getElementById('setOptions-med-threshold').value);
+                  data.push(document.getElementById('setOptions-high-threshold').value);
+                  data.push(document.getElementById('setOptions-signer-public-key').value);
+                  data.push(document.getElementById('setOptions-signer-weight').value);
+                  break;
+          }
+
+          trasnactionBuilder(sourceAccount, sequence, amount, baseFee, memo, timeoutEnabled, operation, data, memotype);
+      }
+
+      function copyToClipboard() {
+          const content = document.getElementById('xdr-result1').innerText;
+          navigator.clipboard.writeText(content).then(() => {
+              alert('XDR copied to clipboard');
+          }).catch(err => {
+              console.error('Failed to copy: ', err);
+          });
+      }
+    </script>
+</body>
+</html>

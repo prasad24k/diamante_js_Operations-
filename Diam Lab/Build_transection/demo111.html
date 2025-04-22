@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mint Asset (Wallet Version)</title>
+</head>
+<body>
+    <h1>Mint Asset (Wallet Version)</h1>
+    <form id="mintForm">
+        <label for="assetCode">Asset Code:</label>
+        <input type="text" id="assetCode" name="assetCode" pattern="[A-Za-z0-9]{1,12}" required><br><br>
+
+        <label for="supply">Supply:</label>
+        <input type="number" id="supply" name="supply" min="1" step="0.0000001" required><br><br>
+
+        <button type="submit">Mint Asset</button>
+    </form>
+
+    <div id="result"></div>
+    <script src="https://cdn.jsdelivr.net/npm/diamnet-sdk/dist/diamnet-sdk.min.js"></script>
+
+    <script>
+        const server = new DiamSdk.Aurora.Server("https://diamtestnet.diamcircle.io/");
+        const NETWORK_PASSPHRASE = "Diamante Testnet 2024";
+
+        document.getElementById('mintForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const assetCode = document.getElementById('assetCode').value;
+            const supply = document.getElementById('supply').value;
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Processing...';
+
+            try {
+                const { distributorPublicKey } = await mint(assetCode, supply);
+                resultDiv.innerHTML = `Asset minted successfully. Distributor Public Key: ${distributorPublicKey}`;
+            } catch (error) {
+                resultDiv.innerHTML = `Error: ${error.message}`;
+            }
+        });
+
+        async function connectWallet() {
+            if (window.diam) {
+                try {
+                    const result = await window.diam.connect();
+                    return result.message[0].diamPublicKey;
+                } catch (error) {
+                    throw new Error('Failed to connect wallet: ' + error.message);
+                }
+            } else {
+                throw new Error('Wallet extension not found');
+            }
+        }
+
+        async function mint(assetCode, supply) {
+            const parentPublicKey = await connectWallet();
+            console.log('Connected wallet public key:', parentPublicKey);
+
+            console.log('Creating distributor account...');
+            const distributorKeypair = await createAccount(parentPublicKey, server);
+            const distributorPublicKey = distributorKeypair.publicKey();
+            console.log('Distributor account created:', distributorPublicKey);
+
+            console.log('Changing trust...');
+            await changeTrust(parentPublicKey, assetCode, distributorPublicKey, server);
+            console.log('Trust changed successfully');
+
+            console.log('Minting asset...');
+            await mintAsset(parentPublicKey, distributorKeypair, assetCode, supply, server);
+            console.log('Asset minted successfully');
+
+            return { distributorPublicKey };
+        }
+
+        async function createAccount(parentPublicKey, server) {
+            const parentAccount = await server.loadAccount(parentPublicKey);
+
+            const distributorKeypair = DiamSdk.Keypair.random();
+            const distributorPublicKey = distributorKeypair.publicKey();
+
+            const createAccountTx = new DiamSdk.TransactionBuilder(parentAccount, {
+                fee: DiamSdk.BASE_FEE,
+                networkPassphrase: NETWORK_PASSPHRASE,
+            })
+                .addOperation(
+                    DiamSdk.Operation.createAccount({
+                        destination: distributorPublicKey,
+                        startingBalance: "2",
+                    })
+                )
+                .setTimeout(30)
+                .build();
+
+            createAccountTx.sign(distributorKeypair);
+            await server.submitTransaction(createAccountTx);
+
+            return distributorKeypair;
+        }
+
+        async function changeTrust(parentPublicKey, assetCode, distributorPublicKey, server) {
+            const parentAccount = await server.loadAccount(parentPublicKey);
+
+            const trustlineTx = new DiamSdk.TransactionBuilder(parentAccount, {
+                fee: DiamSdk.BASE_FEE,
+                networkPassphrase: NETWORK_PASSPHRASE,
+            })
+                .addOperation(
+                    DiamSdk.Operation.changeTrust({
+                        asset: new DiamSdk.Asset(assetCode, distributorPublicKey),
+                    })
+                )
+                .setTimeout(30)
+                .build();
+
+            trustlineTx.sign(parentAccount);
+            await server.submitTransaction(trustlineTx);
+        }
+
+        async function mintAsset(parentPublicKey, distributorKeypair, assetCode, supply, server) {
+            const distributorPublicKey = distributorKeypair.publicKey();
+            const distributorAccount = await server.loadAccount(distributorPublicKey);
+
+            const paymentTx = new DiamSdk.TransactionBuilder(distributorAccount, {
+                fee: DiamSdk.BASE_FEE,
+                networkPassphrase: NETWORK_PASSPHRASE,
+            })
+                .addOperation(
+                    DiamSdk.Operation.payment({
+                        destination: parentPublicKey,
+                        asset: new DiamSdk.Asset(assetCode, distributorPublicKey),
+                        amount: supply,
+                    })
+                )
+                .setTimeout(30)
+                .build();
+
+            paymentTx.sign(distributorKeypair);
+            await server.submitTransaction(paymentTx);
+
+            await setMasterKeyWeight(distributorAccount, distributorKeypair, server);
+        }
+
+        async function setMasterKeyWeight(account, keypair, server) {
+            const setOptionsTx = new DiamSdk.TransactionBuilder(account, {
+                fee: DiamSdk.BASE_FEE,
+                networkPassphrase: NETWORK_PASSPHRASE,
+            })
+                .addOperation(
+                    DiamSdk.Operation.setOptions({
+                        masterWeight: 1,
+                    })
+                )
+                .setTimeout(30)
+                .build();
+
+            setOptionsTx.sign(keypair);
+            await server.submitTransaction(setOptionsTx);
+        }
+    </script>
+</body>
+</html>

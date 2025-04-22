@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Builder</title>
+    <style>
+        #result-blk, #result-btn-blk {
+            display: none;
+        }
+        #result-blk {
+            background-color: #f0f0f0;
+            padding: 10px;
+            margin-top: 20px;
+        }
+        #result-btn-blk {
+            margin-top: 10px;
+        }
+        .dynamic-input {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Transaction Builder</h1>
+    <form id="transaction-form">
+        <label for="sourceAccount">Source Account:</label>
+        <input type="text" id="sourceAccount" name="sourceAccount" required><br><br>
+
+        <label for="sequence">Sequence:</label>
+        <input type="text" id="sequence" name="sequence" required readonly><br><br>
+
+        <label for="amount">Amount:</label>
+        <input type="text" id="amount" name="amount" required><br><br>
+
+        <label for="baseFee">Base Fee:</label>
+        <input type="text" id="baseFee" name="baseFee" required><br><br>
+
+        <label for="memo">Memo:</label>
+        <input type="text" id="memo" name="memo"><br><br>
+
+        <label for="timeoutEnabled">Timeout Enabled:</label>
+        <input type="checkbox" id="timeoutEnabled" name="timeoutEnabled"><br><br>
+
+        <div id="time-bound-inputs" style="display: none;">
+            <label for="lowerTimeBound">Time Bound:</label>
+            <button type="button" id="set-time-bounds">Set from 5 min now</button>
+            <input type="text" id="timeout" name="timeout">
+            <input type="text" id="lowerTimeBound" name="lowerTimeBound"><br><br>
+        </div>
+
+        <label for="operation">Operation:</label>
+        <select id="operation" name="operation" required>
+            <option value="payment">Payment</option>
+            <option value="createAccount">Create Account</option>
+            <option value="manageData">Manage Data</option>
+            <option value="changeTrust">Change Trust</option>
+            <option value="setOptions">Set Options</option>
+        </select><br><br>
+
+        <div id="dynamic-inputs">
+            <!-- Payment Operation Inputs -->
+            <div id="payment-inputs" class="dynamic-input">
+                <label for="payment-destination">Destination Account:</label>
+                <input type="text" id="payment-destination" name="payment-destination" required><br><br>
+
+                <label for="payment-asset-type">Asset Type:</label>
+                <select id="payment-asset-type" name="payment-asset-type" required>
+                    <option value="native">Native</option>
+                    <option value="alphanumeric4">Alphanumeric 4</option>
+                    <option value="alphanumeric12">Alphanumeric 12</option>
+                </select><br><br>
+
+                <div id="asset-code-issuer-fields">
+                    <label for="payment-asset-code">Asset Code:</label>
+                    <input type="text" id="payment-asset-code" name="payment-asset-code"><br><br>
+
+                    <label for="payment-asset-issuer">Asset Issuer:</label>
+                    <input type="text" id="payment-asset-issuer" name="payment-asset-issuer"><br><br>
+                </div>
+
+                <label for="payment-amount">Amount:</label>
+                <input type="text" id="payment-amount" name="payment-amount" required><br><br>
+            </div>
+
+            <!-- Create Account Operation Inputs -->
+            <div id="createAccount-inputs" class="dynamic-input">
+                <label for="createAccount-destination">Destination Account:</label>
+                <input type="text" id="createAccount-destination" name="createAccount-destination" required><br><br>
+
+                <label for="createAccount-startingBalance">Starting Balance:</label>
+                <input type="text" id="createAccount-startingBalance" name="createAccount-startingBalance" required><br><br>
+            </div>
+
+            <!-- Manage Data Operation Inputs -->
+            <div id="manageData-inputs" class="dynamic-input">
+                <label for="manageData-name">Name:</label>
+                <input type="text" id="manageData-name" name="manageData-name" required><br><br>
+
+                <label for="manageData-value">Value:</label>
+                <input type="text" id="manageData-value" name="manageData-value" required><br><br>
+            </div>
+
+            <!-- Change Trust Operation Inputs -->
+            <div id="changeTrust-inputs" class="dynamic-input">
+                <label for="changeTrust-asset-code">Asset Code:</label>
+                <input type="text" id="changeTrust-asset-code" name="changeTrust-asset-code" required><br><br>
+
+                <label for="changeTrust-asset-issuer">Asset Issuer:</label>
+                <input type="text" id="changeTrust-asset-issuer" name="changeTrust-asset-issuer" required><br><br>
+
+                <label for="changeTrust-limit">Limit:</label>
+                <input type="text" id="changeTrust-limit" name="changeTrust-limit" required><br><br>
+            </div>
+
+            <!-- Set Options Operation Inputs -->
+            <div id="setOptions-inputs" class="dynamic-input">
+                <label for="setOptions-master-weight">Master Weight:</label>
+                <input type="text" id="setOptions-master-weight" name="setOptions-master-weight" required><br><br>
+
+                <label for="setOptions-low-threshold">Low Threshold:</label>
+                <input type="text" id="setOptions-low-threshold" name="setOptions-low-threshold" required><br><br>
+
+                <label for="setOptions-med-threshold">Med Threshold:</label>
+                <input type="text" id="setOptions-med-threshold" name="setOptions-med-threshold" required><br><br>
+
+                <label for="setOptions-high-threshold">High Threshold:</label>
+                <input type="text" id="setOptions-high-threshold" name="setOptions-high-threshold" required><br><br>
+
+                <label for="setOptions-signer-public-key">Signer Public Key:</label>
+                <input type="text" id="setOptions-signer-public-key" name="setOptions-signer-public-key" required><br><br>
+
+                <label for="setOptions-signer-weight">Signer Weight:</label>
+                <input type="text" id="setOptions-signer-weight" name="setOptions-signer-weight" required><br><br>
+            </div>
+        </div>
+
+        <label for="memotype">Memo Type:</label>
+        <select id="memotype" name="memotype" required>
+            <option value="empty">Empty</option>
+            <option value="text">Text</option>
+            <option value="id">ID</option>
+            <option value="hash">Hash</option>
+        </select><br><br>
+
+        <button type="button" onclick="buildTransaction()">Build Transaction</button>
+    </form>
+
+    <div id="result-blk">
+        <h2>Transaction Result</h2>
+        <p id="xdr-built"></p>
+        <p id="xdr-result1"></p>
+    </div>
+
+    <div id="result-btn-blk">
+        <button onclick="copyToClipboard()">Copy XDR</button>
+    </div>
+
+    <!-- Include Diamnet SDK and Axios via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/diamnet-sdk/dist/diamnet-sdk.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

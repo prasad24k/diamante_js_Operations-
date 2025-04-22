@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XDR to JSON Convert</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        textarea {
+            width: 50%;
+            height: 100px;
+            margin-bottom: 10px;
+        }
+        button {
+            margin-bottom: 20px;
+        }
+        #treeOutput {
+            font-family: monospace;
+            white-space: pre;
+        }
+        .form-view {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-view label {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>XDR to JSON Convert</h1>
+    <textarea id="xdrInput" placeholder="Enter your XDR string here..."></textarea>
+    <br>
+    <label for="viewType">Select View Type:</label>
+    <select id="viewType">
+        <option value="code">Code</option>
+        <option value="tree">Tree</option>
+        <option value="form">Form</option>
+        <option value="text">Text</option>
+    </select>
+    <br>
+    <button onclick="convertXDRJson()">Submit</button>
+    <h2>Output:</h2>
+    <div id="outputContainer"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/diamnet-sdk/dist/diamnet-sdk.min.js"></script>
+    <script>
+        function convertXDRJson() {
+            const xdrInput = document.getElementById('xdrInput').value;
+            const outputContainer = document.getElementById('outputContainer');
+            const viewType = document.getElementById('viewType').value;
+
+            if (typeof DiamSdk === 'undefined') {
+                outputContainer.textContent = 'Error: DiamSdk is not loaded. Please refresh the page and try again.';
+                return;
+            }
+
+            try {
+                const transaction = DiamSdk.xdr.TransactionEnvelope.fromXDR(xdrInput, 'base64');
+                const tx = transaction.v1().tx();
+                const operations = tx.operations();
+                const numOperations = operations.length;
+
+                const tree = buildTree(tx);
+
+                let message = `Number of operations: ${numOperations}\n`;
+                outputContainer.textContent = message;
+
+                switch (viewType) {
+                    case 'code':
+                        displayCodeView(tree);
+                        break;
+                    case 'tree':
+                        displayTreeView(tree);
+                        break;
+                    case 'form':
+                        displayFormView(tree);
+                        break;
+                    case 'text':
+                        displayTextView(tree);
+                        break;
+                    case 'json':
+                        displayJsonView(tree);
+                        break;
+                    default:
+                        outputContainer.textContent = 'Error: Invalid view type selected.';
+                }
+            } catch (error) {
+                outputContainer.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        function buildTree(tx) {
+            return {
+                'Transaction': {
+                    'Source Account': encodeDiamnetAddress(tx.sourceAccount()),
+                    'Fee': tx.fee().toString(),
+                    'Sequence Number': tx.seqNum().toString(),
+                    'Time Bounds': getTimeBounds(tx.cond()),
+                    'Memo': getMemoValue(tx.memo()),
+                    'Operations': tx.operations().map(getOperationDetails),
+                    'Ext': tx.ext()._arm
+                }
+            };
+        }
+
+        function getTimeBounds(cond) {
+            if (cond.timeBounds()) {
+                return {
+                    'Min Time': cond.timeBounds().minTime().toString(),
+                    'Max Time': cond.timeBounds().maxTime().toString()
+                };
+            }
+            return null;
+        }
+
+        function getMemoValue(memo) {
+            const type = memo._arm;
+            switch (type) {
+                case 'text':
+                    return { 'Text': memo.text().toString() };
+                case 'id':
+                    return { 'ID': memo.id().toString() };
+                case 'hash':
+                case 'return':
+                    return { [type.charAt(0).toUpperCase() + type.slice(1)]: memo[type]().toString('hex') };
+                default:
+                    return { 'Type': 'None' };
+            }
+        }
+
+        function getOperationDetails(op) {
+            const body = op.body();
+            const type = body._arm;
+            const value = body[type]();
+
+            let details = {
+                'Type': type.charAt(0).toUpperCase() + type.slice(1)
+            };
+
+            if (op.sourceAccount()) {
+                details['Source Account'] = encodeDiamnetAddress(op.sourceAccount());
+            }
+
+            switch (type) {
+                //create Account
+                case 'createAccount':
+                    details['Destination'] = encodeDiamnetAddress(value.destination());
+                    details['Starting Balance'] = value.startingBalance().toString();
+                    break;
+                //Payment
+                case 'payment':
+                    details['Destination'] = encodeDiamnetAddress(value.destination());
+                    details['Asset'] = getAssetDetails(value.asset());
+                    details['Amount'] = value.amount().toString();
+                    break;
+                //Path Payment Strict Receive
+                case 'pathPaymentStrictReceive':
+                    details['Send Asset'] = getAssetDetails(value.sendAsset());
+                    details['Send Max'] = value.sendMax().toString();
+                    details['Destination'] = encodeDiamnetAddress(value.destination());
+                    details['Dest Asset'] = getAssetDetails(value.destAsset());
+                    details['Dest Amount'] = value.destAmount().toString();
+                    details['Path'] = value.path().map(getAssetDetails);
+                    break;
+                //Path Payment Strict Send
+                case 'pathPaymentStrictSend':
+                    details['Send Asset'] = getAssetDetails(value.sendAsset());
+                    details['Send Amount'] = value.sendAmount().toString();
+                    details['Destination'] = encodeDiamnetAddress(value.destination());
+                    details['Dest Asset'] = getAssetDetails(value.destAsset());
+                    details['Dest Min'] = value.destMin().toString();
+                    details['Path'] = value.path().map(getAssetDetails);
+                    break;
+                //Manage Sell Offer
+                case 'manageSellOffer':
+                    details['Selling'] = getAssetDetails(value.selling());
+                    details['Buying'] = getAssetDetails(value.buying());
+                    details['Amount'] = value.amount().toString();
+                    details['Price'] = getPriceDetails(value.price());
+                    details['Offer ID'] = value.offerId().toString();
+                    break;
+                //Manage Buy Offer
+                case 'manageBuyOffer':
+                    details['Selling'] = getAssetDetails(value.selling());
+                    details['Buying'] = getAssetDetails(value.buying());
+                    details['Buy Amount'] = value.buyAmount().toString();
+                    details['Price'] = getPriceDetails(value.price());
+                    details['Offer ID'] = value.offerId().toString();
+                    break;
+                //Create Passive Sell Offer
+                case 'createPassiveSellOffer':
+                    details['Selling'] = getAssetDetails(value.selling());
+                    details['Buying'] = getAssetDetails(value.buying());
+                    details['Amount'] = value.amount().toString();
+                    details['Price'] = getPriceDetails(value.price());
+                    break;
+                //Set Options
+                case 'setOptions':
+                    if (value.inflationDest()) {
+                        details['Inflation Destination'] = encodeDiamnetAddress(value.inflationDest());
+                    }
+                    if (value.clearFlags()) {
+                        details['Clear Flags'] = value.clearFlags();
+                    }
+                    if (value.setFlags()) {
+                        details['Set Flags'] = value.setFlags();
+                    }
+                    if (value.masterWeight()) {
+                        details['Master Weight'] = value.masterWeight();
+                    }
+                    if (value.lowThreshold()) {
+                        details['Low Threshold'] = value.lowThreshold();
+                    }
+                    if (value.medThreshold()) {
+                        details['Medium Threshold'] = value.medThreshold();
+                    }
+                    if (value.highThreshold()) {
+                        details['High Threshold'] = value.highThreshold();
+                    }
+                    if (value.homeDomain()) {
+                        details['Home Domain'] = value.homeDomain().toString();
+                    }
+                    if (value.signer()) {
+                        details['Signer'] = {
+                            'Key': encodeDiamnetAddress(value.signer().key()),
+                            'Weight': value.signer().weight()
+                        };
+                    }
+                    break;
+                //Change Trust
+                case 'changeTrust':
+                    details['Line'] = getAssetDetails(value.line());
+                    details['Limit'] = value.limit().toString();
+                    break;
+                //Allow Trust
+                case 'allowTrust':
+                    details['Trustor'] = encodeDiamnetAddress(value.trustor());
+                    details['Asset'] = value.asset().assetCode().toString();
+                    details['Authorize'] = value.authorize();
+                    break;
+                //Account Merge
+                case 'accountMerge':
+                    details['Destination'] = encodeDiamnetAddress(value);
+                    break;
+                //Manage Data
+                case 'manageData':
+                    details['Data Name'] = value.dataName().toString();
+                    details['Data Value'] = value.dataValue() ? value.dataValue().toString('base64') : null;
+                    break;
+                //Bump Sequence
+                case 'bumpSequence':
+                    details['Bump To'] = value.bumpTo().toString();
+                    break;
+                //Create Claimable Balance
+                case 'createClaimableBalance':
+                    details['Asset'] = getAssetDetails(value.asset());
+                    details['Amount'] = value.amount().toString();
+                    details['Claimants'] = value.claimants().map(getClaimantDetails);
+                    break;
+                //Claim Claimable Balance
+                case 'claimClaimableBalance':
+                    details['Balance ID'] = value.balanceId().toString('hex');
+                    break;
+                //Begin Sponsoring Future Reserves
+                case 'beginSponsoringFutureReserves':
+                    details['Sponsored ID'] = encodeDiamnetAddress(value.sponsoredId());
+                    break;
+                //Revoke Sponsorship
+                case 'revokeSponsorship':
+                    details['Revoke Type'] = value.switch().name;
+                    switch (value.switch().name) {
+                        case 'revokeSponsorshipLedgerEntry':
+                            details['Ledger Key'] = getLedgerKeyDetails(value.ledgerKey());
+                            break;
+                        case 'revokeSponsorshipSigner':
+                            details['Account ID'] = encodeDiamnetAddress(value.signer().accountId());
+                            details['Signer Key'] = encodeDiamnetAddress(value.signer().signerKey());
+                            break;
+                    }
+                    break;
+                //Clawback
+                case 'clawback':
+                    details['Asset'] = getAssetDetails(value.asset());
+                    details['From'] = encodeDiamnetAddress(value.from());
+                    details['Amount'] = value.amount().toString();
+                    break;
+                //Clawback Claimable Balance
+                case 'clawbackClaimableBalance':
+                    details['Balance ID'] = value.balanceId().toString('hex');
+                    break;
+                //Set Trustline Flags
+                case 'setTrustLineFlags':
+                    details['Trustor'] = encodeDiamnetAddress(value.trustor());
+                    details['Asset'] = getAssetDetails(value.asset());
+                    details['Clear Flags'] = value.clearFlags();
+                    details['Set Flags'] = value.setFlags();
+                    break;
+                //Liquidity Pool Deposit
+                case 'liquidityPoolDeposit':
+                    details['Liquidity Pool ID'] = value.liquidityPoolId().toString('hex');
+                    details['Max Amount A'] = value.maxAmountA().toString();
+                    details['Max Amount B'] = value.maxAmountB().toString();
+                    details['Min Price'] = getPriceDetails(value.minPrice());
+                    details['Max Price'] = getPriceDetails(value.maxPrice());
+                    break;
+                //Liquidity Pool Withdraw
+                case 'liquidityPoolWithdraw':
+                    details['Liquidity Pool ID'] = value.liquidityPoolId().toString('hex');
+                    details['Amount'] = value.amount().toString();
+                    details['Min Amount A'] = value.minAmountA().toString();
+                    details['Min Amount B'] = value.minAmountB().toString();
+                    break;
+                default:
+                    Object.assign(details, JSON.parse(JSON.stringify(value, replacer)));
+            }
+
+            return details;
+        }
+
+        function getPriceDetails(price) {
+            return {
+                'N': price.n().toString(),
+                'D': price.d().toString()
+            };
+        }
+
+        function getClaimantDetails(claimant) {
+            return {
+                'Destination': encodeDiamnetAddress(claimant.v0().destination()),
+                'Predicate': getClaimPredicateDetails(claimant.v0().predicate())
+            };
+        }
+
+        function getClaimPredicateDetails(predicate) {
+            const type = predicate.switch().name;
+            switch (type) {
+                case 'claimPredicateUnconditional':
+                    return 'Unconditional';
+                case 'claimPredicateAnd':
+                    return {
+                        'And': predicate.andPredicates().map(getClaimPredicateDetails)
+                    };
+                case 'claimPredicateOr':
+                    return {
+                        'Or': predicate.orPredicates().map(getClaimPredicateDetails)
+                    };
+                case 'claimPredicateNot':
+                    return {
+                        'Not': getClaimPredicateDetails(predicate.notPredicate())
+                    };
+                case 'claimPredicateBeforeAbsoluteTime':
+                    return {
+                        'Before Absolute Time': predicate.absBefore().toString()
+                    };
+                case 'claimPredicateBeforeRelativeTime':
+                    return {
+                        'Before Relative Time': predicate.relBefore().toString()
+                    };
+            }
+        }
+
+        function getLedgerKeyDetails(ledgerKey) {
+            const type = ledgerKey.switch().name;
+            switch (type) {
+                case 'account':
+                    return {
+                        'Type': 'Account',
+                        'Account ID': encodeDiamnetAddress(ledgerKey.account().accountId())
+                    };
+                case 'trustline':
+                    return {
+                        'Type': 'Trustline',
+                        'Account ID': encodeDiamnetAddress(ledgerKey.trustLine().accountId()),
+                        'Asset': getAssetDetails(ledgerKey.trustLine().asset())
+                    };
+                case 'offer':
+                    return {
+                        'Type': 'Offer',
+                        'Seller ID': encodeDiamnetAddress(ledgerKey.offer().sellerId()),
+                        'Offer ID': ledgerKey.offer().offerId().toString()
+                    };
+                case 'data':
+                    return {
+                        'Type': 'Data',
+                        'Account ID': encodeDiamnetAddress(ledgerKey.data().accountId()),
+                        'Data Name': ledgerKey.data().dataName().toString()
+                    };
+                case 'claimableBalance':
+                    return {
+                        'Type': 'Claimable Balance',
+                        'Balance ID': ledgerKey.claimableBalance().balanceId().toString('hex')
+                    };
+                case 'liquidityPool':
+                    return {
+                        'Type': 'Liquidity Pool',
+                        'Liquidity Pool ID': ledgerKey.liquidityPool().liquidityPoolId().toString('hex')
+                    };
+                default:
+                    return { 'Type': 'Unknown' };
+            }
+        }
+
+        function getAssetDetails(asset) {
+            if (asset.switch().name === 'assetTypeNative') {
+                return 'Native';
+            } else if (asset.switch().name === 'assetTypeCreditAlphanum4' || asset.switch().name === 'assetTypeCreditAlphanum12') {
+                const assetCode = asset.switch().name === 'assetTypeCreditAlphanum4' ?
+                    asset.alphaNum4().assetCode().toString().trim() :
+                    asset.alphaNum12().assetCode().toString().trim();
+                const issuer = asset.switch().name === 'assetTypeCreditAlphanum4' ?
+                    encodeDiamnetAddress(asset.alphaNum4().issuer()) :
+                    encodeDiamnetAddress(asset.alphaNum12().issuer());
+                return {
+                    'Asset Code': assetCode,
+                    'Issuer': issuer
+                };
+            }
+        }
+
+        function encodeDiamnetAddress(accountId) {
+            return DiamSdk.StrKey.encodeEd25519PublicKey(accountId.ed25519());
+        }
+
+        function formatTree(tree, indent = 0) {
+            let output = '';
+            for (const [key, value] of Object.entries(tree)) {
+                output += ' '.repeat(indent) + key + ': ';
+                if (typeof value === 'object' && value !== null) {
+                    output += '\n' + formatTree(value, indent + 2);
+                } else {
+                    output += value + '\n';
+                }
+            }
+            return output;
+        }
+
+        function displayCodeView(tree) {
+            const outputContainer = document.getElementById('outputContainer');
+            outputContainer.innerHTML = '<pre><code>' + JSON.stringify(tree, null, 2) + '</code></pre>';
+        }
+
+        function displayTreeView(tree) {
+            const outputContainer = document.getElementById('outputContainer');
+            outputContainer.innerHTML = '<pre>' + formatTree(tree) + '</pre>';
+        }
+
+        function displayFormView(tree) {
+            const outputContainer = document.getElementById('outputContainer');
+            outputContainer.innerHTML = createForm(tree);
+        }
+
+        function displayTextView(tree) {
+            const outputContainer = document.getElementById('outputContainer');
+            outputContainer.innerHTML = '<pre>' + JSON.stringify(tree, null, 2) + '</pre>';
+        }
+
+        function displayJsonView(tree) {
+            const outputContainer = document.getElementById('outputContainer');
+            outputContainer.innerHTML = '<pre>' + JSON.stringify(tree, null, 2) + '</pre>';
+        }
+
+        function createForm(data, parentKey = '') {
+            let formHTML = '';
+            for (const [key, value] of Object.entries(data)) {
+                const fullKey = parentKey ? `${parentKey}.${key}` : key;
+                if (typeof value === 'object' && value !== null) {
+                    formHTML += `<div class="form-view">
+                        <label for="${fullKey}">${key}:</label>
+                        ${createForm(value, fullKey)}
+                    </div>`;
+                } else {
+                    formHTML += `<div class="form-view">
+                        <label for="${fullKey}">${key}:</label>
+                        <input type="text" id="${fullKey}" value="${value}" readonly>
+                    </div>`;
+                }
+            }
+            return formHTML;
+        }
+
+        function replacer(key, value) {
+            if (value instanceof DiamSdk.xdr.PublicKey) {
+                return encodeDiamnetAddress(value);
+            }
+            return value;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit Signed XDR</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h2>Submit Signed XDR Transaction</h2>
+    <form id="xdrForm">
+        <label for="signedXdr">Enter Signed XDR:</label>
+        <textarea id="signedXdr" rows="6" cols="50" placeholder="Paste the signed XDR here..."></textarea><br><br>
+        <button type="submit">Submit Transaction</button>
+    </form>
+    <div id="response"></div>
+
+    <script>
+        document.getElementById('xdrForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const signedXdr = document.getElementById('signedXdr').value;
+            if (!signedXdr) {
+                alert('Please provide the signed XDR');
+                return;
+            }
+
+            try {
+                // Submit the transaction using Axios
+                const response = await axios.post('https://diamtestnet.diamcircle.io/submit_transaction', {
+                    xdr: signedXdr
+                });
+
+                // Display the response
+                const resultDiv = document.getElementById('response');
+                if (response.data.successful) {
+                    resultDiv.innerHTML = `<p>Transaction Successful! Hash: ${response.data.hash}</p>`;
+                } else {
+                    resultDiv.innerHTML = `<p>Transaction Failed: ${JSON.stringify(response.data.errors)}</p>`;
+                }
+            } catch (error) {
+                console.error('Error submitting transaction:', error);
+                document.getElementById('response').innerHTML = `<p>Error submitting transaction. Please try again.</p>`;
+            }
+        });
+    </script>
+</body>
+</html>

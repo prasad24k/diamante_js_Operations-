@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mint Asset</title>
+</head>
+<body>
+    <h1>Mint Asset</h1>
+    <form id="mintForm">
+        <label for="secretKey">Secret Key:</label>
+        <input type="text" id="secretKey" name="secretKey" required><br><br>
+
+        <label for="assetCode">Asset Code:</label>
+        <input type="text" id="assetCode" name="assetCode" pattern="[A-Za-z0-9]{1,12}" required><br><br>
+
+        <label for="supply">Supply:</label>
+        <input type="number" id="supply" name="supply" min="1" step="0.0000001" required><br><br>
+
+        <button type="submit">Mint Asset</button>
+    </form>
+
+    <div id="result"></div>
+
+    <!-- Including DiamSdk -->
+    <script src="https://cdn.jsdelivr.net/npm/diamnet-sdk/dist/diamnet-sdk.min.js"></script>
+
+    <script>
+        document.getElementById('mintForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const secretKey = document.getElementById('secretKey').value;
+            const assetCode = document.getElementById('assetCode').value;
+            const supply = document.getElementById('supply').value;
+
+            const resultDiv = document.getElementById('result');
+
+            try {
+                const response = await mint(secretKey, assetCode, supply);
+                resultDiv.innerHTML = `<p>Asset minted successfully!</p>
+                                       <p><strong>Asset Code:</strong> ${assetCode}</p>
+                                       <p><strong>Supply:</strong> ${supply}</p>
+                                       <p><strong>Distributor Public Key:</strong> ${response.distributorPublicKey}</p>`;
+            } catch (error) {
+                console.error('Detailed error:', error);
+                resultDiv.innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        });
+
+        async function mint(secretKey, assetCode, supply) {
+            const parentKeypair = DiamSdk.Keypair.fromSecret(secretKey);
+            const server = new DiamSdk.Aurora.Server("https://diamtestnet.diamcircle.io/");
+
+            console.log('Creating distributor account...');
+            const distributorKeypair = await createAccount(parentKeypair, server);
+            const distributorPublicKey = distributorKeypair.publicKey();
+            console.log('Distributor account created:', distributorPublicKey);
+
+            console.log('Changing trust...');
+            await changeTrust(parentKeypair, assetCode, distributorPublicKey, server);
+            console.log('Trust changed successfully');
+
+            console.log('Minting asset...');
+            await mintAsset(parentKeypair, distributorKeypair, assetCode, supply, server);
+            console.log('Asset minted successfully');
+
+            return { distributorPublicKey };
+        }
+        async function createAccount(parentKeypair, server) {
+            const parentPublicKey = parentKeypair.publicKey();
+            const parentAccount = await server.loadAccount(parentPublicKey);
+
+            const distributorKeypair = DiamSdk.Keypair.random();
+            const distributorPublicKey = distributorKeypair.publicKey();
+
+            const createAccountTx = new DiamSdk.TransactionBuilder(parentAccount, {
+                fee: DiamSdk.BASE_FEE,
+                networkPassphrase: "Diamante Testnet 2024",
+            })
+                .addOperation(
+                    DiamSdk.Operation.createAccount({
+                        destination: distributorPublicKey,
+                        startingBalance: "2",
+                    })
+                )
+                .setTimeout(0)
+                .build();
+
+            createAccountTx.sign(parentKeypair);
+            await server.submitTransaction(createAccountTx);
+
+            return distributorKeypair;
+        }
+        async function changeTrust(parentKeypair, assetCode, distributorPublicKey, server) {
+            const parentPublicKey = parentKeypair.publicKey();
+            const parentAccount = await server.loadAccount(parentPublicKey);
+
+            const trustlineTx = new DiamSdk.TransactionBuilder(parentAccount, {
+                fee: DiamSdk.BASE_FEE,
+                networkPassphrase: "Diamante Testnet 2024",
+            });
+
+            const _asset = new DiamSdk.Asset(assetCode, distributorPublicKey);
+            trustlineTx
+                .addOperation(
+                    DiamSdk.Operation.changeTrust({
+                        asset: _asset,
+                    })
+                )
+                .setTimeout(0);
+
+            const trustlineTxBuilt = trustlineTx.build();
+            trustlineTxBuilt.sign(parentKeypair);
+            await server.submitTransaction(trustlineTxBuilt);
+        }
+        async function mintAsset(parentKeypair, distributorKeypair, assetCode, supply, server) {
+            const parentPublicKey = parentKeypair.publicKey();
+            const distributorPublicKey = distributorKeypair.publicKey();
+            const distributorAccount = await server.loadAccount(distributorPublicKey);
+            const paymentTx = new DiamSdk.TransactionBuilder(distributorAccount, {
+                fee: DiamSdk.BASE_FEE,
+                networkPassphrase: "Diamante Testnet 2024",
+            })
+                .addOperation(
+                    DiamSdk.Operation.payment({
+                        destination: parentPublicKey,
+                        asset: new DiamSdk.Asset(assetCode, distributorPublicKey),
+                        amount: supply,
+                    })
+                )
+                .setTimeout(100)
+                .build();
+            paymentTx.sign(distributorKeypair);
+            await server.submitTransaction(paymentTx);
+
+            await setMasterKeyWeight(distributorAccount, distributorKeypair, server);
+        }
+        async function setMasterKeyWeight(account, keypair, server) {
+            const setOptionsTx = new DiamSdk.TransactionBuilder(account, {
+                fee: DiamSdk.BASE_FEE,
+                networkPassphrase: "Diamante Testnet 2024",
+            })
+                .addOperation(
+                    DiamSdk.Operation.setOptions({
+                        masterWeight: 1,
+                    })
+                )
+                .setTimeout(0)
+                .build();
+
+            setOptionsTx.sign(keypair);
+            await server.submitTransaction(setOptionsTx);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign XDR Transaction</title>
+</head>
+<body>
+    <h1>Sign XDR Transaction with Secret Key</h1>
+    <div>
+        <label for="xdrInput">XDR Transaction (Base64):</label>
+        <textarea id="xdrInput" rows="10" cols="50"></textarea>
+    </div>
+    <div>
+        <label for="secretKeyInput">Secret Key:</label>
+        <input type="text" id="secretKeyInput" size="50">
+    </div>
+    <button onclick="signTransaction()">Sign Transaction</button>
+    <div>
+        <h2>Signed Transaction:</h2>
+        <textarea id="signedXdrOutput" rows="10" cols="50" readonly></textarea>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/diamnet-sdk/dist/diamnet-sdk.min.js"></script>
+    <script>
+        function signTransaction() { 
+            const xdrInput = document.getElementById('xdrInput').value;
+            const secretKeyInput = document.getElementById('secretKeyInput').value;
+
+            try {
+                const transaction = DiamSdk.TransactionBuilder.fromXDR(xdrInput, "Diamante Testnet 2024");
+                const keypair = DiamSdk.Keypair.fromSecret(secretKeyInput);
+                console.log(keypair,"keyyyyy")
+                transaction.sign(keypair);
+                const signedXdr = transaction.toEnvelope().toXDR('base64');
+                document.getElementById('signedXdrOutput').value = signedXdr;
+
+                console.log("Transaction signed successfully.");
+            } catch (error) {
+                alert('Error signing transaction: ' + error.message);
+                console.error('Error signing transaction:', error);
+            }
+        }
+    </script>
+</body>
+</html>
